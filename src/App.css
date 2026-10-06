@@ -96,6 +96,13 @@
   color: var(--saffron);
 }
 
+.location-switch > span:nth-child(2) {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hero {
   position: relative;
   height: clamp(390px, 39vw, 490px);
@@ -743,6 +750,10 @@
     gap: 6px;
     padding: 8px;
     font-size: 10px;
+  }
+
+  .location-switch > span:nth-child(2) {
+    max-width: 118px;
   }
 
   .hero {

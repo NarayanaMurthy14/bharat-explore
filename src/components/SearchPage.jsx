@@ -12,11 +12,32 @@ const categories = [
   'Entertainment',
 ]
 
-function SearchPage() {
+function calculateDistanceKm(origin, destination) {
+  const toRadians = (degrees) => (degrees * Math.PI) / 180
+  const latitudeDifference = toRadians(destination.latitude - origin.latitude)
+  const longitudeDifference = toRadians(destination.longitude - origin.longitude)
+  const originLatitude = toRadians(origin.latitude)
+  const destinationLatitude = toRadians(destination.latitude)
+  const haversine =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(originLatitude) *
+      Math.cos(destinationLatitude) *
+      Math.sin(longitudeDifference / 2) ** 2
+
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(haversine)))
+}
+
+function SearchPage({
+  locationStatus = 'idle',
+  coordinates = null,
+  detectedLocation = '',
+  locationError = '',
+  onUseMyLocation,
+}) {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const normalizedQuery = query.trim().toLowerCase()
-  const filteredPlaces = touristPlaces.filter((place) => {
+  const matchingPlaces = touristPlaces.filter((place) => {
     const matchesSearch = `${place.name} ${place.city} ${place.state}`
       .toLowerCase()
       .includes(normalizedQuery)
@@ -24,6 +45,15 @@ function SearchPage() {
       activeCategory === 'All' || place.category === activeCategory
     return matchesSearch && matchesCategory
   })
+  const placesToDisplay = coordinates
+    ? matchingPlaces
+        .map((place) => ({
+          ...place,
+          distanceKm: calculateDistanceKm(coordinates, place),
+        }))
+        .sort((first, second) => first.distanceKm - second.distanceKm)
+        .slice(0, 5)
+    : matchingPlaces
   const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== 'All'
 
   function resetFilters() {
@@ -36,15 +66,37 @@ function SearchPage() {
       <header className="search-page__header">
         <p className="search-page__eyebrow">Explore India</p>
         <h1 id="search-page-title">Find your next destination</h1>
-        <label className="search-page__search">
-          <span className="visually-hidden">Search places</span>
-          <input
-            type="search"
-            placeholder="Search by place, city, or state"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+        <div className="search-page__search-row">
+          <label className="search-page__search">
+            <span className="visually-hidden">Search places</span>
+            <input
+              type="search"
+              placeholder="Search by place, city, or state"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <button
+            className="search-page__location-button"
+            type="button"
+            onClick={onUseMyLocation}
+            disabled={locationStatus === 'loading'}
+          >
+            {locationStatus === 'loading' ? 'Detecting location…' : 'Use My Location'}
+          </button>
+        </div>
+        {locationStatus === 'success' && coordinates && (
+          <p className="search-page__location-status" role="status">
+            {detectedLocation} ({coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)})
+            {' · '}
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+              © OpenStreetMap contributors
+            </a>
+          </p>
+        )}
+        {locationStatus === 'error' && (
+          <p className="search-page__location-error" role="alert">{locationError}</p>
+        )}
         <div className="search-page__filter-row">
           <div className="search-page__filters" role="group" aria-label="Filter places by category">
             {categories.map((category) => (
@@ -73,12 +125,12 @@ function SearchPage() {
       <div className="search-page__content">
         <section className="search-page__results" aria-label="Search results" aria-live="polite">
           <div className="search-page__results-heading">
-            <h2>Places to explore</h2>
-            <span aria-label={`${filteredPlaces.length} places found`}>{filteredPlaces.length}</span>
+            <h2>{coordinates ? 'Nearest places' : 'Places to explore'}</h2>
+            <span aria-label={`${placesToDisplay.length} places shown`}>{placesToDisplay.length}</span>
           </div>
-          {filteredPlaces.length > 0 ? (
+          {placesToDisplay.length > 0 ? (
             <ul className="search-page__place-list">
-              {filteredPlaces.map((place) => (
+              {placesToDisplay.map((place) => (
                 <li className="search-page__place" key={place.id}>
                   <article className="search-page__place-card">
                     <img className="search-page__place-image" src={place.image} alt={place.name} loading="lazy" />
@@ -91,6 +143,11 @@ function SearchPage() {
                         {place.city}, {place.state}
                       </p>
                       <span className="search-page__place-category">{place.category}</span>
+                      {coordinates && (
+                        <p className="search-page__place-distance">
+                          {place.distanceKm.toFixed(1)} km away
+                        </p>
+                      )}
                       <p className="search-page__place-description">{place.description}</p>
                     </div>
                   </article>

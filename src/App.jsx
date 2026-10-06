@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import DashboardLayout from './components/DashboardLayout.jsx'
+import { reverseGeocode } from './services/reverseGeocode.js'
 
 const places = [
   {
@@ -126,6 +127,10 @@ function App() {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All places')
   const [savedPlaces, setSavedPlaces] = useState([])
+  const [locationStatus, setLocationStatus] = useState('idle')
+  const [coordinates, setCoordinates] = useState(null)
+  const [detectedLocation, setDetectedLocation] = useState('')
+  const [locationError, setLocationError] = useState('')
 
   const filteredPlaces = places
     .filter((place) => {
@@ -144,8 +149,71 @@ function App() {
     )
   }
 
+  async function useMyLocation() {
+    if (!navigator.geolocation) {
+      setLocationStatus('error')
+      setLocationError('Location is not available in this browser.')
+      return
+    }
+
+    setLocationStatus('loading')
+    setLocationError('')
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          maximumAge: 60_000,
+          timeout: 15_000,
+        })
+      })
+      const currentCoordinates = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      }
+      setCoordinates(currentCoordinates)
+      setDetectedLocation(
+        `${currentCoordinates.latitude.toFixed(5)}, ${currentCoordinates.longitude.toFixed(5)}`,
+      )
+
+      try {
+        const readableLocation = await reverseGeocode(currentCoordinates)
+        setDetectedLocation(readableLocation)
+        setLocationStatus('success')
+      } catch {
+        setLocationStatus('success')
+        setLocationError(
+          'Your coordinates were detected, but the readable address could not be loaded.',
+        )
+      }
+    } catch (error) {
+      setLocationStatus('error')
+      switch (error.code) {
+        case 1:
+          setLocationError(
+            'Location permission was denied. Allow access in your browser settings and try again.',
+          )
+          break
+        case 2:
+          setLocationError('Your location could not be determined. Please try again.')
+          break
+        case 3:
+          setLocationError('Finding your location took too long. Please try again.')
+          break
+        default:
+          setLocationError('We could not get your location. Please try again.')
+      }
+    }
+  }
+
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      locationStatus={locationStatus}
+      coordinates={coordinates}
+      detectedLocation={detectedLocation}
+      locationError={locationError}
+      onUseMyLocation={useMyLocation}
+    >
     <div className="app-shell">
       <header className="site-header">
         <a className="brand" href="#home" aria-label="BharatExplore home">
@@ -165,9 +233,13 @@ function App() {
           <a className="nav-link" href="#about">About us</a>
         </nav>
 
-        <button className="location-switch" type="button" aria-label="Current location Jaipur">
+        <button
+          className="location-switch"
+          type="button"
+          aria-label={`Current location ${detectedLocation || 'Jaipur, India'}`}
+        >
           <span className="location-icon"><Icon name="pin" size={16} /></span>
-          <span>Jaipur, India</span>
+          <span>{detectedLocation || 'Jaipur, India'}</span>
           <Icon name="chevron" size={15} />
         </button>
       </header>
