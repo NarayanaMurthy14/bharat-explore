@@ -11,6 +11,7 @@ function DashboardLayout({
   detectedLocation,
   locationError,
   onUseMyLocation,
+  onResetLocation,
 }) {
   const [activeView, setActiveView] = useState('Discover')
 
@@ -22,6 +23,7 @@ function DashboardLayout({
         detectedLocation={detectedLocation}
         locationError={locationError}
         onUseMyLocation={onUseMyLocation}
+        onResetLocation={onResetLocation}
       />
     ) : activeView === 'Map' ? (
       <MapView />

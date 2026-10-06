@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import './App.css'
 import DashboardLayout from './components/DashboardLayout.jsx'
 import { reverseGeocode } from './services/reverseGeocode.js'
@@ -131,6 +131,7 @@ function App() {
   const [coordinates, setCoordinates] = useState(null)
   const [detectedLocation, setDetectedLocation] = useState('')
   const [locationError, setLocationError] = useState('')
+  const locationRequestId = useRef(0)
 
   const filteredPlaces = places
     .filter((place) => {
@@ -150,6 +151,9 @@ function App() {
   }
 
   async function useMyLocation() {
+    const requestId = locationRequestId.current + 1
+    locationRequestId.current = requestId
+
     if (!navigator.geolocation) {
       setLocationStatus('error')
       setLocationError('Location is not available in this browser.')
@@ -167,6 +171,10 @@ function App() {
           timeout: 15_000,
         })
       })
+      if (requestId !== locationRequestId.current) {
+        return
+      }
+
       const currentCoordinates = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -178,15 +186,24 @@ function App() {
 
       try {
         const readableLocation = await reverseGeocode(currentCoordinates)
+        if (requestId !== locationRequestId.current) {
+          return
+        }
         setDetectedLocation(readableLocation)
         setLocationStatus('success')
       } catch {
+        if (requestId !== locationRequestId.current) {
+          return
+        }
         setLocationStatus('success')
         setLocationError(
           'Your coordinates were detected, but the readable address could not be loaded.',
         )
       }
     } catch (error) {
+      if (requestId !== locationRequestId.current) {
+        return
+      }
       setLocationStatus('error')
       switch (error.code) {
         case 1:
@@ -206,6 +223,14 @@ function App() {
     }
   }
 
+  function resetLocation() {
+    locationRequestId.current += 1
+    setCoordinates(null)
+    setDetectedLocation('')
+    setLocationError('')
+    setLocationStatus('idle')
+  }
+
   return (
     <DashboardLayout
       locationStatus={locationStatus}
@@ -213,6 +238,7 @@ function App() {
       detectedLocation={detectedLocation}
       locationError={locationError}
       onUseMyLocation={useMyLocation}
+      onResetLocation={resetLocation}
     >
     <div className="app-shell">
       <header className="site-header">
