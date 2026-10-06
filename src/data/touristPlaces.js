@@ -131,7 +131,7 @@ const touristPlaces = [
     location: 'Triplicane, Chennai',
     city: 'Chennai',
     state: 'Tamil Nadu',
-    category: 'Nature',
+    category: 'Beach',
     description: 'Take a walk along one of India’s best-known urban beaches.',
     latitude: 13.0500,
     longitude: 80.2824,
