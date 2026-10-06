@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MapView from './MapView.jsx'
-import touristPlaces from './mockTouristPlaces.js'
+import touristPlaces from './touristPlaces.js'
 
 function SearchPage() {
   const [query, setQuery] = useState('')
