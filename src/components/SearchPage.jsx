@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import MapView from './MapView.jsx'
-import touristPlaces from './touristPlaces.js'
+import touristPlaces from '../data/touristPlaces.js'
 
 function SearchPage() {
   const [query, setQuery] = useState('')
   const filteredPlaces = touristPlaces.filter((place) =>
-    `${place.name} ${place.location} ${place.category}`
+    `${place.name} ${place.location} ${place.city} ${place.state} ${place.category}`
       .toLowerCase()
       .includes(query.trim().toLowerCase()),
   )
@@ -35,15 +35,18 @@ function SearchPage() {
           {filteredPlaces.length > 0 ? (
             <ul className="search-page__place-list">
               {filteredPlaces.map((place) => (
-                <li className="search-page__place" key={place.name}>
-                  <div className="search-page__place-heading">
-                    <h3>{place.name}</h3>
-                    <span>{place.distance}</span>
+                <li className="search-page__place" key={place.id}>
+                  <img className="search-page__place-image" src={place.image} alt="" loading="lazy" />
+                  <div className="search-page__place-content">
+                    <div className="search-page__place-heading">
+                      <h3>{place.name}</h3>
+                      <span aria-label={`Rating ${place.rating} out of 5`}>★ {place.rating}</span>
+                    </div>
+                    <p className="search-page__place-location">
+                      {place.city}, {place.state} <span aria-hidden="true">·</span> {place.category}
+                    </p>
+                    <p className="search-page__place-description">{place.description}</p>
                   </div>
-                  <p className="search-page__place-location">
-                    {place.location} <span aria-hidden="true">·</span> {place.category}
-                  </p>
-                  <p className="search-page__place-description">{place.description}</p>
                 </li>
               ))}
             </ul>

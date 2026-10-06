@@ -129,8 +129,25 @@
 }
 
 .search-page__place {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   padding: 14px 0;
   border-top: 1px solid #f0ede7;
+}
+
+.search-page__place-image {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 4px;
+  background: #f1f0e9;
+  object-fit: cover;
+}
+
+.search-page__place-content {
+  min-width: 0;
+  flex: 1;
 }
 
 .search-page__place-heading {
