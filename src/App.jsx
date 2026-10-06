@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import DashboardLayout from './components/DashboardLayout.jsx'
 
 const places = [
   {
@@ -144,6 +145,7 @@ function App() {
   }
 
   return (
+    <DashboardLayout>
     <div className="app-shell">
       <header className="site-header">
         <a className="brand" href="#home" aria-label="BharatExplore home">
@@ -170,7 +172,7 @@ function App() {
         </button>
       </header>
 
-      <main>
+      <div>
         <section className="hero" id="home" aria-labelledby="hero-title">
           <img
             className="hero-image"
@@ -287,7 +289,7 @@ function App() {
             <span>Showing places near <strong><Icon name="pin" size={13} /> Jaipur, Rajasthan</strong></span>
           </div>
         </section>
-      </main>
+      </div>
 
       <footer className="site-footer" id="about">
         <a className="brand footer-brand" href="#home">
@@ -304,6 +306,7 @@ function App() {
         <span className="footer-copyright">© 2025 BharatExplore</span>
       </footer>
     </div>
+    </DashboardLayout>
   )
 }
 
