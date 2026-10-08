@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import MapView from './MapView.jsx'
 import touristPlaces from '../data/touristPlaces.js'
 import { getDirections } from '../services/directions.js'
 
@@ -39,7 +38,7 @@ function SearchPage({
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [selectedPlace, setSelectedPlace] = useState(null)
-  const [travelMode, setTravelMode] = useState('driving')
+  const [activeImage, setActiveImage] = useState(0)
   const [routeStatus, setRouteStatus] = useState('idle')
   const [travelOptions, setTravelOptions] = useState({})
   const [routeOrigin, setRouteOrigin] = useState(null)
@@ -75,6 +74,7 @@ function SearchPage({
     setQuery('')
     setActiveCategory('All')
     onResetLocation?.()
+    selectPlace(null)
   }
 
   async function loadTravelOptions(place, request) {
@@ -146,7 +146,7 @@ function SearchPage({
       setRouteStatus('ready')
     } else {
       setRouteStatus('error')
-      setRouteError('Route estimates are unavailable right now. You can still open Google Maps directions.')
+      setRouteError('Travel times are unavailable right now. You can still open Google Maps directions.')
     }
   }
 
@@ -159,7 +159,7 @@ function SearchPage({
     routeRequestId.current = request.id
     routeRequest.current = request
     setSelectedPlace(place)
-    setTravelMode('driving')
+    setActiveImage(0)
     setRouteStatus('loading')
     setTravelOptions({})
     setRouteOrigin(coordinates)
@@ -173,10 +173,6 @@ function SearchPage({
     }
   }
 
-  function selectTravelMode(mode) {
-    setTravelMode(mode)
-  }
-
   function handleGetDirections() {
     if (!selectedPlace || !routeOrigin) {
       return
@@ -185,7 +181,7 @@ function SearchPage({
       api: '1',
       origin: `${routeOrigin.latitude},${routeOrigin.longitude}`,
       destination: `${selectedPlace.latitude},${selectedPlace.longitude}`,
-      travelmode: travelMode,
+      travelmode: 'driving',
     })
     window.location.assign(`https://www.google.com/maps/dir/?${parameters}`)
   }
@@ -210,6 +206,9 @@ function SearchPage({
       <header className="search-page__header">
         <p className="search-page__eyebrow">Explore India</p>
         <h1 id="search-page-title">Find your next destination</h1>
+        <p className="search-page__intro">
+          Thoughtful places, local favourites, and a little inspiration for the road ahead.
+        </p>
         <div className="search-page__search-row">
           <label className="search-page__search">
             <span className="visually-hidden">Search places</span>
@@ -231,7 +230,8 @@ function SearchPage({
         </div>
         {locationStatus === 'success' && coordinates && (
           <p className="search-page__location-status" role="status">
-            {detectedLocation} ({coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)})
+            <span className="search-page__location-dot" aria-hidden="true" />
+            Showing places near {detectedLocation}
           </p>
         )}
         {locationStatus === 'error' && (
@@ -262,11 +262,23 @@ function SearchPage({
         </div>
       </header>
 
-      <div className="search-page__content">
-        <section className="search-page__results" aria-label="Search results" aria-live="polite">
+      <section className="search-page__results" aria-label="Search results" aria-live="polite">
           <div className="search-page__results-heading">
-            <h2>{coordinates ? 'Nearest places' : 'Places to explore'}</h2>
-            <span aria-label={`${placesToDisplay.length} places shown`}>{placesToDisplay.length}</span>
+            <div>
+              <h2>Places to explore</h2>
+              <p>{coordinates ? 'A little closer to where you are.' : 'Find a place that feels like your kind of somewhere.'}</p>
+            </div>
+            <div className="search-page__results-actions">
+              <span aria-label={`${placesToDisplay.length} places shown`}>{placesToDisplay.length} places</span>
+              <button
+                className="search-page__add-place"
+                type="button"
+                disabled
+                title="Adding places will be available soon"
+              >
+                <span aria-hidden="true">+</span> Add a Place
+              </button>
+            </div>
           </div>
           {selectedPlace ? (
             <section className="place-details" aria-labelledby="place-details-title">
@@ -277,63 +289,74 @@ function SearchPage({
               >
                 Back to places
               </button>
-              <img className="place-details__image" src={selectedPlace.image} alt={selectedPlace.name} />
-              <div className="place-details__content">
-                <div className="search-page__place-heading">
-                  <h3 id="place-details-title">{selectedPlace.name}</h3>
-                  <span aria-label={`Rating ${selectedPlace.rating} out of 5`}>★ {selectedPlace.rating}</span>
-                </div>
-                <p className="search-page__place-location">
-                  {selectedPlace.city}, {selectedPlace.state}
-                </p>
-                <span className="search-page__place-category">{selectedPlace.category}</span>
-                <p className="search-page__place-description">{selectedPlace.description}</p>
-
-                <div className="place-details__modes" role="group" aria-label="Travel mode">
-                  {['driving', 'walking'].map((mode) => {
-                    const option = travelOptions[mode]
-                    const modeLabel = mode === 'driving' ? 'Driving' : 'Walking'
-                    return (
+              <div className="place-details__layout">
+                <div className="place-details__visuals">
+                  <img
+                    className="place-details__image"
+                    src={selectedPlace.gallery[activeImage].src}
+                    alt={selectedPlace.gallery[activeImage].alt}
+                  />
+                  <div className="place-details__gallery" role="group" aria-label={`${selectedPlace.name} photos`}>
+                    {selectedPlace.gallery.map((image, index) => (
                       <button
+                        className={`place-details__thumbnail${activeImage === index ? ' is-active' : ''}`}
                         type="button"
-                        aria-pressed={travelMode === mode}
-                        className={travelMode === mode ? 'is-active' : ''}
-                        key={mode}
-                        onClick={() => selectTravelMode(mode)}
-                        disabled={!routeOrigin}
+                        key={image.src}
+                        onClick={() => setActiveImage(index)}
+                        aria-label={`Show photo ${index + 1} of ${selectedPlace.name}`}
+                        aria-pressed={activeImage === index}
                       >
-                        <strong>{modeLabel}</strong>
-                        <span>
-                          {option?.status === 'ready'
-                            ? `${option.distanceKm.toFixed(1)} km · ${formatDuration(option.durationSeconds)}`
-                            : routeStatus === 'loading'
-                              ? 'Calculating…'
-                              : 'Estimate unavailable'}
-                        </span>
+                        <img src={image.src} alt="" loading="lazy" />
                       </button>
-                    )
-                  })}
+                    ))}
+                  </div>
                 </div>
-                {routeOrigin && (
-                  <p className="place-details__routing-attribution">
-                    Route estimates by <a href="https://www.fossgis.de/" target="_blank" rel="noreferrer">FOSSGIS</a>
-                    {' · '}
-                    <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-                      © OpenStreetMap contributors
-                    </a>
+                <div className="place-details__content">
+                  <span className="search-page__place-category">{selectedPlace.category}</span>
+                  <div className="search-page__place-heading">
+                    <h3 id="place-details-title">{selectedPlace.name}</h3>
+                    <span aria-label={`Rating ${selectedPlace.rating} out of 5`}>★ {selectedPlace.rating}</span>
+                  </div>
+                  <p className="place-details__exact-location">
+                    <span aria-hidden="true">⌖</span> {selectedPlace.location}, {selectedPlace.state}
                   </p>
-                )}
-                <button
-                  className="place-details__directions"
-                  type="button"
-                  onClick={handleGetDirections}
-                  disabled={!routeOrigin}
-                >
-                  Get Directions
-                </button>
-                {routeStatus === 'error' && (
-                  <p className="search-page__location-error" role="alert">{routeError}</p>
-                )}
+                  <p className="place-details__description">{selectedPlace.detailDescription}</p>
+
+                  <div className="place-details__travel-options" aria-label="Travel options">
+                    {['driving', 'walking'].map((mode) => {
+                      const option = travelOptions[mode]
+                      const modeLabel = mode === 'driving' ? 'Driving' : 'Walking'
+                      return (
+                        <div className="place-details__travel-row" key={mode}>
+                          <strong>
+                            <span className="place-details__travel-icon" aria-hidden="true">
+                              {mode === 'driving' ? '↗' : '↟'}
+                            </span>
+                            {modeLabel}
+                          </strong>
+                          <span className="place-details__travel-value">
+                            {option?.status === 'ready'
+                              ? `${option.distanceKm.toFixed(1)} km · ${formatDuration(option.durationSeconds)}`
+                              : routeStatus === 'loading'
+                                ? 'Calculating…'
+                                : 'Estimate unavailable'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <button
+                    className="place-details__directions"
+                    type="button"
+                    onClick={handleGetDirections}
+                    disabled={!routeOrigin}
+                  >
+                    Get Directions <span aria-hidden="true">↗</span>
+                  </button>
+                  {routeStatus === 'error' && (
+                    <p className="search-page__location-error" role="alert">{routeError}</p>
+                  )}
+                </div>
               </div>
             </section>
           ) : placesToDisplay.length > 0 ? (
@@ -347,9 +370,7 @@ function SearchPage({
                         <h3>{place.name}</h3>
                         <span aria-label={`Rating ${place.rating} out of 5`}>★ {place.rating}</span>
                       </div>
-                      <p className="search-page__place-location">
-                        {place.city}, {place.state}
-                      </p>
+                      <p className="search-page__place-location">{place.location}, {place.state}</p>
                       <span className="search-page__place-category">{place.category}</span>
                       {coordinates && (
                         <p className="search-page__place-distance">
@@ -372,11 +393,10 @@ function SearchPage({
           ) : (
             <div className="search-page__empty">
               <p>No places match your search and filters.</p>
+              <button type="button" onClick={resetFilters}>Reset filters</button>
             </div>
           )}
-        </section>
-        <MapView />
-      </div>
+      </section>
     </section>
   )
 }
