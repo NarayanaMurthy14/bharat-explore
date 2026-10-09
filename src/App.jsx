@@ -2,10 +2,14 @@ import { useRef, useState } from 'react'
 import './App.css'
 import DashboardLayout from './components/DashboardLayout.jsx'
 import MapView from './components/MapView.jsx'
+import touristPlaces from './data/touristPlaces.js'
+import { SavedPlacesProvider } from './context/SavedPlacesContext.jsx'
+import { useSavedPlaces } from './context/useSavedPlaces.js'
 import { reverseGeocode } from './services/reverseGeocode.js'
 
 const places = [
   {
+    id: 'ramoji-film-city',
     name: 'Ramoji Film City',
     location: 'Anaspur, Hyderabad',
     category: 'Entertainment',
@@ -18,6 +22,7 @@ const places = [
     imageAlt: 'A cinematic attraction with studio sets',
   },
   {
+    id: 'bhuvanagiri-fort',
     name: 'Bhuvanagiri Fort',
     location: 'Bhongir, Hyderabad',
     category: 'Forts',
@@ -30,6 +35,7 @@ const places = [
     imageAlt: 'Historic fort architecture on a rocky hill',
   },
   {
+    id: 'ananthagiri-hills',
     name: 'Ananthagiri Hills',
     location: 'Vikarabad, Hyderabad',
     category: 'Nature',
@@ -42,6 +48,7 @@ const places = [
     imageAlt: 'A lush forest and green hills',
   },
   {
+    id: 'yadagirigutta-temple',
     name: 'Yadagirigutta Temple',
     location: 'Yadadri, Hyderabad',
     category: 'Temples',
@@ -54,6 +61,7 @@ const places = [
     imageAlt: 'A historic temple among the hills',
   },
   {
+    id: 'nagarjuna-sagar',
     name: 'Nagarjuna Sagar',
     location: 'Nalgonda, Hyderabad',
     category: 'Lakes',
@@ -66,6 +74,7 @@ const places = [
     imageAlt: 'A wide reservoir surrounded by green hills',
   },
   {
+    id: 'warangal-fort',
     name: 'Warangal Fort',
     location: 'Warangal, Telangana',
     category: 'Forts',
@@ -78,6 +87,20 @@ const places = [
     imageAlt: 'Stone gateways at a historic Indian fort',
   },
 ]
+
+const dashboardPlaces = places.map((place) => ({
+  ...place,
+  detailsPlaceId: touristPlaces.some((touristPlace) => touristPlace.id === place.id)
+    ? place.id
+    : null,
+}))
+const placeCatalog = [
+  ...dashboardPlaces,
+  ...touristPlaces
+    .filter((place) => !places.some((dashboardPlace) => dashboardPlace.id === place.id))
+    .map((place) => ({ ...place, detailsPlaceId: place.id })),
+]
+const validPlaceIds = new Set(placeCatalog.map((place) => place.id))
 
 const categories = [
   { label: 'All', icon: '🏠' },
@@ -166,18 +189,19 @@ function Icon({ name, size = 18, fill = 'none' }) {
   )
 }
 
-function App() {
+function DashboardApp() {
   const [query, setQuery] = useState('')
   const [locationQuery, setLocationQuery] = useState('Hyderabad')
   const [activeCategory, setActiveCategory] = useState('All')
   const [distanceLimit, setDistanceLimit] = useState(300)
   const [sortBy, setSortBy] = useState('nearest')
-  const [savedPlaces, setSavedPlaces] = useState([])
   const [locationStatus, setLocationStatus] = useState('idle')
   const [coordinates, setCoordinates] = useState(null)
   const [detectedLocation, setDetectedLocation] = useState('')
   const [locationError, setLocationError] = useState('')
+  const [initialPlaceId, setInitialPlaceId] = useState(null)
   const locationRequestId = useRef(0)
+  const { isPlaceSaved, toggleSavedPlace } = useSavedPlaces()
 
   const filteredPlaces = places
     .filter((place) => {
@@ -207,12 +231,8 @@ function App() {
     document.getElementById('places-list')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  function toggleSaved(name) {
-    setSavedPlaces((current) =>
-      current.includes(name)
-        ? current.filter((placeName) => placeName !== name)
-        : [...current, name],
-    )
+  function viewPlaceDetails(placeId) {
+    setInitialPlaceId(placeId)
   }
 
   async function useMyLocation() {
@@ -298,6 +318,10 @@ function App() {
 
   return (
     <DashboardLayout
+      places={placeCatalog}
+      initialPlaceId={initialPlaceId}
+      onInitialPlaceHandled={() => setInitialPlaceId(null)}
+      onViewDetails={viewPlaceDetails}
       locationStatus={locationStatus}
       coordinates={coordinates}
       detectedLocation={detectedLocation}
@@ -307,23 +331,6 @@ function App() {
     >
       {({ onNavigate }) => (
         <div className="app-shell dashboard-home">
-          <header className="site-header">
-            <nav className="main-nav" aria-label="Dashboard navigation">
-              <a className="nav-link active" href="#home">Home</a>
-              <a className="nav-link" href="#places-list">Explore</a>
-              <a className="nav-link" href="#places-list">Popular Destinations</a>
-              <a className="nav-link" href="#about">About</a>
-            </nav>
-            <div className="site-header__actions">
-              <button className="header-action" type="button" onClick={() => onNavigate('Saved places')}>
-                <Icon name="heart" size={16} fill="currentColor" /> Saved
-              </button>
-              <button className="header-action header-action--account" type="button" title="Account options coming soon">
-                <span className="account-avatar" aria-hidden="true">●</span> Login / Sign Up
-              </button>
-            </div>
-          </header>
-
           <main>
             <section className="hero" id="home" aria-labelledby="hero-title">
               <img
@@ -482,9 +489,9 @@ function App() {
                 {filteredPlaces.length > 0 ? (
                   <div className="places-grid">
                     {filteredPlaces.map((place) => {
-                      const isSaved = savedPlaces.includes(place.name)
+                      const isSaved = isPlaceSaved(place.id)
                       return (
-                        <article className="place-card" key={place.name}>
+                        <article className="place-card" key={place.id}>
                           <div className="card-image-link">
                             <img className="card-image" src={place.image} alt={place.imageAlt} loading="lazy" />
                             <span className="place-distance"><Icon name="pin" size={13} /> {place.distance} km</span>
@@ -492,9 +499,9 @@ function App() {
                           <button
                             className={`save-button${isSaved ? ' is-saved' : ''}`}
                             type="button"
-                            aria-label={`${isSaved ? 'Remove' : 'Save'} ${place.name}${isSaved ? ' from' : ' to'} saved places`}
+                            aria-label={`${isSaved ? 'Unsave' : 'Save'} ${place.name}${isSaved ? ' from' : ' to'} saved places`}
                             aria-pressed={isSaved}
-                            onClick={() => toggleSaved(place.name)}
+                            onClick={() => toggleSavedPlace(place.id)}
                           >
                             <Icon name="heart" size={16} fill={isSaved ? 'currentColor' : 'none'} />
                           </button>
@@ -506,7 +513,16 @@ function App() {
                             <h3>{place.name}</h3>
                             <p className="place-location"><Icon name="pin" size={13} /> {place.location}</p>
                             <p className="place-description">{place.description}</p>
-                            <button className="view-details" type="button" onClick={() => onNavigate('Search')}>
+                            <button
+                              className="view-details"
+                              type="button"
+                              onClick={() => {
+                                if (placeCatalog.find((item) => item.id === place.id)?.detailsPlaceId) {
+                                  viewPlaceDetails(place.id)
+                                }
+                                onNavigate('Search')
+                              }}
+                            >
                               View Details <Icon name="arrow" size={14} />
                             </button>
                           </div>
@@ -566,6 +582,14 @@ function App() {
         </div>
       )}
     </DashboardLayout>
+  )
+}
+
+function App() {
+  return (
+    <SavedPlacesProvider validPlaceIds={validPlaceIds}>
+      <DashboardApp />
+    </SavedPlacesProvider>
   )
 }
 

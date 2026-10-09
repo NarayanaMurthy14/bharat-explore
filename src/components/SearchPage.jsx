@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import touristPlaces from '../data/touristPlaces.js'
 import { getDirections } from '../services/directions.js'
 import { getPlaceImages } from '../services/placeImages.js'
+import { useSavedPlaces } from '../context/useSavedPlaces.js'
 
 const categories = [
   'All',
@@ -35,6 +36,8 @@ function SearchPage({
   locationError = '',
   onUseMyLocation,
   onResetLocation,
+  initialPlaceId = null,
+  onInitialPlaceHandled,
 }) {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
@@ -49,6 +52,7 @@ function SearchPage({
   const [routeError, setRouteError] = useState('')
   const routeRequest = useRef(null)
   const routeRequestId = useRef(0)
+  const { isPlaceSaved, toggleSavedPlace } = useSavedPlaces()
   const normalizedQuery = query.trim().toLowerCase()
   const matchingPlaces = touristPlaces.filter((place) => {
     const matchesSearch = `${place.name} ${place.city} ${place.state}`
@@ -81,7 +85,7 @@ function SearchPage({
     selectPlace(null)
   }
 
-  async function loadTravelOptions(place, request) {
+  const loadTravelOptions = useCallback(async (place, request) => {
     let origin = coordinates
 
     if (!origin) {
@@ -152,9 +156,9 @@ function SearchPage({
       setRouteStatus('error')
       setRouteError('Travel times are unavailable right now. You can still open Google Maps directions.')
     }
-  }
+  }, [coordinates])
 
-  function selectPlace(place) {
+  const selectPlace = useCallback((place) => {
     routeRequest.current?.controller.abort()
     const request = {
       id: routeRequestId.current + 1,
@@ -192,7 +196,19 @@ function SearchPage({
       setRouteStatus('idle')
       setRouteOrigin(null)
     }
-  }
+  }, [coordinates, loadTravelOptions])
+
+  useEffect(() => {
+    if (!initialPlaceId) {
+      return
+    }
+
+    const requestedPlace = touristPlaces.find((place) => place.id === initialPlaceId)
+    if (requestedPlace) {
+      selectPlace(requestedPlace)
+    }
+    onInitialPlaceHandled?.()
+  }, [initialPlaceId, onInitialPlaceHandled, selectPlace])
 
   function handleGetDirections() {
     if (!selectedPlace || !routeOrigin) {
@@ -392,6 +408,14 @@ function SearchPage({
                     <span aria-hidden="true">⌖</span> {selectedPlace.location}, {selectedPlace.state}
                   </p>
                   <p className="place-details__description">{selectedPlace.detailDescription}</p>
+                  <button
+                    className="search-page__save-button"
+                    type="button"
+                    aria-pressed={isPlaceSaved(selectedPlace.id)}
+                    onClick={() => toggleSavedPlace(selectedPlace.id)}
+                  >
+                    {isPlaceSaved(selectedPlace.id) ? 'Unsave' : 'Save'}
+                  </button>
 
                   <div className="place-details__travel-options" aria-label="Travel options">
                     {['driving', 'walking'].map((mode) => {
@@ -435,6 +459,15 @@ function SearchPage({
               {placesToDisplay.map((place) => (
                 <li className="search-page__place" key={place.id}>
                   <article className="search-page__place-card">
+                    <button
+                      className={`search-page__save-button search-page__save-button--card${isPlaceSaved(place.id) ? ' is-saved' : ''}`}
+                      type="button"
+                      aria-label={`${isPlaceSaved(place.id) ? 'Unsave' : 'Save'} ${place.name}`}
+                      aria-pressed={isPlaceSaved(place.id)}
+                      onClick={() => toggleSavedPlace(place.id)}
+                    >
+                      {isPlaceSaved(place.id) ? 'Unsave' : 'Save'}
+                    </button>
                     <div
                       className="search-page__place-image search-page__place-image--placeholder"
                       role="img"
