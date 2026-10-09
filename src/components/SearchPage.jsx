@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import touristPlaces from '../data/touristPlaces.js'
 import { getDirections } from '../services/directions.js'
+import { getPlaceImages } from '../services/placeImages.js'
 
 const categories = [
   'All',
@@ -39,6 +40,9 @@ function SearchPage({
   const [activeCategory, setActiveCategory] = useState('All')
   const [selectedPlace, setSelectedPlace] = useState(null)
   const [activeImage, setActiveImage] = useState(0)
+  const [placeImages, setPlaceImages] = useState([])
+  const [imageStatus, setImageStatus] = useState('idle')
+  const [failedImageUrls, setFailedImageUrls] = useState([])
   const [routeStatus, setRouteStatus] = useState('idle')
   const [travelOptions, setTravelOptions] = useState({})
   const [routeOrigin, setRouteOrigin] = useState(null)
@@ -160,11 +164,28 @@ function SearchPage({
     routeRequest.current = request
     setSelectedPlace(place)
     setActiveImage(0)
+    setPlaceImages([])
+    setImageStatus(place ? 'loading' : 'idle')
+    setFailedImageUrls([])
     setRouteStatus('loading')
     setTravelOptions({})
     setRouteOrigin(coordinates)
     setRouteError('')
     if (place) {
+      getPlaceImages(place, request.controller.signal)
+        .then((images) => {
+          if (request.controller.signal.aborted || request.id !== routeRequestId.current) {
+            return
+          }
+          setPlaceImages(images)
+          setImageStatus(images.length > 0 ? 'ready' : 'empty')
+        })
+        .catch(() => {
+          if (request.controller.signal.aborted || request.id !== routeRequestId.current) {
+            return
+          }
+          setImageStatus('empty')
+        })
       loadTravelOptions(place, request)
     } else {
       request.controller.abort()
@@ -199,6 +220,17 @@ function SearchPage({
     const hours = Math.floor(durationMinutes / 60)
     const minutes = durationMinutes % 60
     return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`
+  }
+
+  const availableImages = placeImages.filter(
+    (image) => !failedImageUrls.includes(image.src),
+  )
+  const selectedImage = availableImages[activeImage] ?? availableImages[0]
+
+  function markImageUnavailable(src) {
+    setFailedImageUrls((current) =>
+      current.includes(src) ? current : [...current, src],
+    )
   }
 
   return (
@@ -291,25 +323,64 @@ function SearchPage({
               </button>
               <div className="place-details__layout">
                 <div className="place-details__visuals">
-                  <img
-                    className="place-details__image"
-                    src={selectedPlace.gallery[activeImage].src}
-                    alt={selectedPlace.gallery[activeImage].alt}
-                  />
-                  <div className="place-details__gallery" role="group" aria-label={`${selectedPlace.name} photos`}>
-                    {selectedPlace.gallery.map((image, index) => (
-                      <button
-                        className={`place-details__thumbnail${activeImage === index ? ' is-active' : ''}`}
-                        type="button"
-                        key={image.src}
-                        onClick={() => setActiveImage(index)}
-                        aria-label={`Show photo ${index + 1} of ${selectedPlace.name}`}
-                        aria-pressed={activeImage === index}
-                      >
-                        <img src={image.src} alt="" loading="lazy" />
-                      </button>
-                    ))}
-                  </div>
+                  {selectedImage ? (
+                    <img
+                      className="place-details__image"
+                      src={selectedImage.src}
+                      alt={selectedImage.alt}
+                      onError={() => markImageUnavailable(selectedImage.src)}
+                    />
+                  ) : (
+                    <div
+                      className="place-details__image place-details__image--placeholder"
+                      role="img"
+                      aria-label={
+                        imageStatus === 'loading'
+                          ? `Finding verified ${selectedPlace.name} photos`
+                          : `No verified photos available for ${selectedPlace.name}`
+                      }
+                    >
+                      {imageStatus === 'loading'
+                        ? 'Finding verified photos…'
+                        : 'No verified photos available'}
+                    </div>
+                  )}
+                  {availableImages.length > 1 && (
+                    <div className="place-details__gallery" role="group" aria-label={`${selectedPlace.name} photos`}>
+                      {availableImages.map((image, index) => (
+                        <button
+                          className={`place-details__thumbnail${activeImage === index ? ' is-active' : ''}`}
+                          type="button"
+                          key={image.canonicalUrl}
+                          onClick={() => setActiveImage(index)}
+                          aria-label={`Show photo ${index + 1} of ${selectedPlace.name}`}
+                          aria-pressed={activeImage === index}
+                        >
+                          <img
+                            src={image.src}
+                            alt=""
+                            loading="lazy"
+                            onError={() => markImageUnavailable(image.src)}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedImage && (
+                    <p className="place-details__photo-credit">
+                      <a href={selectedImage.descriptionUrl} target="_blank" rel="noreferrer">
+                        Photo: {selectedImage.credit || selectedImage.alt}
+                      </a>
+                      {selectedImage.license && selectedImage.licenseUrl && (
+                        <>
+                          {' · '}
+                          <a href={selectedImage.licenseUrl} target="_blank" rel="noreferrer">
+                            {selectedImage.license}
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="place-details__content">
                   <span className="search-page__place-category">{selectedPlace.category}</span>
@@ -364,7 +435,11 @@ function SearchPage({
               {placesToDisplay.map((place) => (
                 <li className="search-page__place" key={place.id}>
                   <article className="search-page__place-card">
-                    <img className="search-page__place-image" src={place.image} alt={place.name} loading="lazy" />
+                    <div
+                      className="search-page__place-image search-page__place-image--placeholder"
+                      role="img"
+                      aria-label={`No verified photo loaded for ${place.name}`}
+                    />
                     <div className="search-page__place-content">
                       <div className="search-page__place-heading">
                         <h3>{place.name}</h3>

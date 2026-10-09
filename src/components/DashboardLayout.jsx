@@ -27,8 +27,14 @@ function DashboardLayout({
       />
     ) : activeView === 'Map' ? (
       <MapView />
+    ) : activeView === 'Saved Places' || activeView === 'My Trips' ? (
+      <section className="dashboard-placeholder" aria-labelledby="dashboard-placeholder-title">
+        <p className="search-page__eyebrow">BharatExplore</p>
+        <h1 id="dashboard-placeholder-title">{activeView}</h1>
+        <p>This section is ready for a future update.</p>
+      </section>
     ) : (
-      children
+      typeof children === 'function' ? children({ onNavigate: setActiveView }) : children
     )
 
   return (

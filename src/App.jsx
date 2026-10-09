@@ -1,56 +1,99 @@
 import { useRef, useState } from 'react'
 import './App.css'
 import DashboardLayout from './components/DashboardLayout.jsx'
+import MapView from './components/MapView.jsx'
 import { reverseGeocode } from './services/reverseGeocode.js'
 
 const places = [
   {
-    name: 'Amber Fort',
-    location: 'Amer, Jaipur',
-    category: 'Heritage',
-    distance: '11 km',
-    rating: '4.8',
+    name: 'Ramoji Film City',
+    location: 'Anaspur, Hyderabad',
+    category: 'Entertainment',
+    distance: 30,
+    rating: '4.4',
+    reviews: '12K',
+    description: 'World’s largest film city with fun rides, shows, and film sets.',
     image:
-      'https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=900&q=85',
-    imageAlt: 'The grand sandstone walls of Amber Fort',
-    tag: 'Must visit',
+      'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=900&q=85',
+    imageAlt: 'A cinematic attraction with studio sets',
   },
   {
-    name: 'Hawa Mahal',
-    location: 'Badi Choupad, Jaipur',
-    category: 'Heritage',
-    distance: '4 km',
-    rating: '4.9',
+    name: 'Bhuvanagiri Fort',
+    location: 'Bhongir, Hyderabad',
+    category: 'Forts',
+    distance: 55,
+    rating: '4.2',
+    reviews: '3K',
+    description: 'Ancient fort with panoramic views and a rewarding hilltop trek.',
     image:
       'https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=900&q=85',
-    imageAlt: 'Historic architecture in Jaipur',
-    tag: 'Local favourite',
+    imageAlt: 'Historic fort architecture on a rocky hill',
   },
   {
-    name: 'Jal Mahal',
-    location: 'Amer Road, Jaipur',
+    name: 'Ananthagiri Hills',
+    location: 'Vikarabad, Hyderabad',
     category: 'Nature',
-    distance: '7 km',
-    rating: '4.7',
+    distance: 80,
+    rating: '4.3',
+    reviews: '5K',
+    description: 'Beautiful forest, trekking trails, and a peaceful getaway.',
     image:
-      'https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=900&q=85',
-    imageAlt: 'A palace reflected in a quiet lake',
-    tag: 'Golden hour',
+      'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=900&q=85',
+    imageAlt: 'A lush forest and green hills',
   },
   {
-    name: 'Galtaji Temple',
-    location: 'Khania-Balaji, Jaipur',
-    category: 'Spiritual',
-    distance: '10 km',
+    name: 'Yadagirigutta Temple',
+    location: 'Yadadri, Hyderabad',
+    category: 'Temples',
+    distance: 100,
     rating: '4.6',
+    reviews: '8K',
+    description: 'A revered hilltop temple with striking architecture and calm views.',
     image:
       'https://images.unsplash.com/photo-1606293926075-69a00dbfde81?auto=format&fit=crop&w=900&q=85',
-    imageAlt: 'A historic Indian temple among the hills',
-    tag: 'Hidden gem',
+    imageAlt: 'A historic temple among the hills',
+  },
+  {
+    name: 'Nagarjuna Sagar',
+    location: 'Nalgonda, Hyderabad',
+    category: 'Lakes',
+    distance: 150,
+    rating: '4.4',
+    reviews: '6K',
+    description: 'Scenic dam, reservoir, and beautiful viewpoints over the water.',
+    image:
+      'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85',
+    imageAlt: 'A wide reservoir surrounded by green hills',
+  },
+  {
+    name: 'Warangal Fort',
+    location: 'Warangal, Telangana',
+    category: 'Forts',
+    distance: 150,
+    rating: '4.3',
+    reviews: '4K',
+    description: 'Iconic Kakatiya-era fort with impressive stone gateways.',
+    image:
+      'https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=900&q=85',
+    imageAlt: 'Stone gateways at a historic Indian fort',
   },
 ]
 
-const categories = ['All places', 'Heritage', 'Nature', 'Spiritual']
+const categories = [
+  { label: 'All', icon: '🏠' },
+  { label: 'Temples', icon: '🛕' },
+  { label: 'Nature', icon: '🌲' },
+  { label: 'Waterfalls', icon: '💧' },
+  { label: 'Forts', icon: '🏰' },
+  { label: 'Beaches', icon: '🏝️' },
+  { label: 'Historical Places', icon: '🏛️' },
+  { label: 'Lakes', icon: '🌊' },
+  { label: 'Wildlife', icon: '🦌' },
+  { label: 'Hill Stations', icon: '⛰️' },
+  { label: 'Adventure', icon: '🧭' },
+]
+
+const popularLocations = ['Hyderabad', 'Tirupati', 'Ooty', 'Lonavala', 'Jaipur', 'Varanasi', 'Goa']
 
 function Icon({ name, size = 18, fill = 'none' }) {
   const common = {
@@ -125,7 +168,10 @@ function Icon({ name, size = 18, fill = 'none' }) {
 
 function App() {
   const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState('All places')
+  const [locationQuery, setLocationQuery] = useState('Hyderabad')
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [distanceLimit, setDistanceLimit] = useState(300)
+  const [sortBy, setSortBy] = useState('nearest')
   const [savedPlaces, setSavedPlaces] = useState([])
   const [locationStatus, setLocationStatus] = useState('idle')
   const [coordinates, setCoordinates] = useState(null)
@@ -135,12 +181,31 @@ function App() {
 
   const filteredPlaces = places
     .filter((place) => {
-      const matchesCategory =
-        activeCategory === 'All places' || place.category === activeCategory
+      const matchesCategory = activeCategory === 'All' || place.category === activeCategory
       const searchText = `${place.name} ${place.location} ${place.category}`.toLowerCase()
-      return matchesCategory && searchText.includes(query.trim().toLowerCase())
+      const matchesSearch = searchText.includes(query.trim().toLowerCase())
+      const matchesDistance = place.distance <= distanceLimit
+      return matchesCategory && matchesSearch && matchesDistance
     })
-    .sort((first, second) => Number.parseInt(first.distance, 10) - Number.parseInt(second.distance, 10))
+    .sort((first, second) =>
+      sortBy === 'rating'
+        ? Number(second.rating) - Number(first.rating)
+        : first.distance - second.distance,
+    )
+
+  function clearFilters() {
+    setQuery('')
+    setLocationQuery('Hyderabad')
+    setActiveCategory('All')
+    setDistanceLimit(300)
+    setSortBy('nearest')
+    resetLocation()
+  }
+
+  function searchPlaces() {
+    setQuery(locationQuery.trim().toLowerCase() === 'hyderabad' ? '' : locationQuery.trim())
+    document.getElementById('places-list')?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   function toggleSaved(name) {
     setSavedPlaces((current) =>
@@ -240,170 +305,266 @@ function App() {
       onUseMyLocation={useMyLocation}
       onResetLocation={resetLocation}
     >
-    <div className="app-shell">
-      <header className="site-header">
-        <a className="brand" href="#home" aria-label="BharatExplore home">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 36 36" fill="none">
-              <path d="M18 4 4 28h28L18 4Z" fill="currentColor" opacity=".17" />
-              <path d="M18 8 7 27h22L18 8Z" stroke="currentColor" strokeWidth="2" />
-              <path d="M18 15v9m-4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="brand-name">bharat<span>explore</span></span>
-        </a>
-
-        <nav className="main-nav" aria-label="Main navigation">
-          <a className="nav-link active" href="#discover">Discover</a>
-          <a className="nav-link" href="#places">Places</a>
-          <a className="nav-link" href="#about">About us</a>
-        </nav>
-
-        <button
-          className="location-switch"
-          type="button"
-          aria-label={`Current location ${detectedLocation || 'Jaipur, India'}`}
-        >
-          <span className="location-icon"><Icon name="pin" size={16} /></span>
-          <span>{detectedLocation || 'Jaipur, India'}</span>
-          <Icon name="chevron" size={15} />
-        </button>
-      </header>
-
-      <div>
-        <section className="hero" id="home" aria-labelledby="hero-title">
-          <img
-            className="hero-image"
-            src="https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=2200&q=90"
-            alt="The Taj Mahal glowing in the warm evening light"
-          />
-          <div className="hero-shade" />
-          <div className="hero-content" id="discover">
-            <span className="eyebrow"><span className="eyebrow-dot" /> YOUR NEXT STORY STARTS HERE</span>
-            <h1 id="hero-title">Find your way<br />to <em>wonder.</em></h1>
-            <p>Little-known lanes, landmark views, and everything in between.<br className="desktop-break" /> India is closer than you think.</p>
-            <a className="hero-button" href="#places">
-              Explore nearby <Icon name="arrow" size={17} />
-            </a>
-          </div>
-          <div className="hero-caption"><span /> AGRA, UTTAR PRADESH <span className="caption-divider">/</span> INDIA</div>
-          <div className="hero-pagination" aria-hidden="true"><span className="pagination-current" /><span /><span /><span /></div>
-        </section>
-
-        <section className="nearby-section" id="places" aria-labelledby="places-heading">
-          <div className="section-topline">
-            <div className="section-heading">
-              <span className="section-kicker">MADE FOR YOUR KIND OF CURIOUS</span>
-              <h2 id="places-heading">A little closer to <em>somewhere.</em></h2>
-              <p className="section-description">Handpicked places worth stepping out for, right around you.</p>
+      {({ onNavigate }) => (
+        <div className="app-shell dashboard-home">
+          <header className="site-header">
+            <nav className="main-nav" aria-label="Dashboard navigation">
+              <a className="nav-link active" href="#home">Home</a>
+              <a className="nav-link" href="#places-list">Explore</a>
+              <a className="nav-link" href="#places-list">Popular Destinations</a>
+              <a className="nav-link" href="#about">About</a>
+            </nav>
+            <div className="site-header__actions">
+              <button className="header-action" type="button" onClick={() => onNavigate('Saved places')}>
+                <Icon name="heart" size={16} fill="currentColor" /> Saved
+              </button>
+              <button className="header-action header-action--account" type="button" title="Account options coming soon">
+                <span className="account-avatar" aria-hidden="true">●</span> Login / Sign Up
+              </button>
             </div>
-            <div className="weather-note"><span className="weather-sun">☀</span><span><strong>28°</strong><small>Perfect day to wander</small></span></div>
-          </div>
+          </header>
 
-          <div className="discovery-toolbar">
-            <div className="search-box">
-              <Icon name="search" size={19} />
-              <input
-                type="search"
-                aria-label="Search nearby places"
-                placeholder="Search places, landmarks, experiences..."
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+          <main>
+            <section className="hero" id="home" aria-labelledby="hero-title">
+              <img
+                className="hero-image"
+                src="https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=2200&q=90"
+                alt="A historic fort in India at sunset"
               />
-              <kbd>⌘ K</kbd>
-            </div>
-            <div className="category-filters" aria-label="Filter places by category">
+              <div className="hero-shade" />
+              <div className="hero-content">
+                <span className="eyebrow"><span className="eyebrow-dot" /> YOUR NEXT STORY STARTS HERE</span>
+                <h1 id="hero-title">Discover Amazing<br />Places in India</h1>
+                <p>Explore treasured destinations, hidden gems, temples, waterfalls,<br className="desktop-break" /> forts and more across India.</p>
+                <div className="hero-search">
+                  <label className="hero-search__location">
+                    <Icon name="pin" size={17} />
+                    <span className="visually-hidden">Search destination</span>
+                    <input
+                      type="search"
+                      value={locationQuery}
+                      onChange={(event) => setLocationQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') searchPlaces()
+                      }}
+                      aria-label="Search destination"
+                    />
+                    {locationQuery && (
+                      <button type="button" aria-label="Clear destination" onClick={() => setLocationQuery('')}>×</button>
+                    )}
+                  </label>
+                  <button className="hero-search__submit" type="button" onClick={searchPlaces}>Search Places</button>
+                  <button
+                    className="hero-search__location"
+                    type="button"
+                    onClick={useMyLocation}
+                    disabled={locationStatus === 'loading'}
+                  >
+                    <Icon name="pin" size={15} />
+                    {locationStatus === 'loading' ? 'Finding you…' : 'Use My Location'}
+                  </button>
+                </div>
+                {locationError && <p className="hero-location-error" role="alert">{locationError}</p>}
+                <div className="popular-locations" aria-label="Popular locations">
+                  <span>Popular:</span>
+                  {popularLocations.map((location) => (
+                    <button
+                      className={locationQuery === location ? 'is-selected' : ''}
+                      key={location}
+                      type="button"
+                      onClick={() => setLocationQuery(location)}
+                    >
+                      {location}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <aside className="hero-location-card" aria-label="Featured destination">
+                <strong><Icon name="pin" size={16} /> {detectedLocation || 'Hyderabad'}</strong>
+                <span>{coordinates ? 'YOUR CURRENT LOCATION' : 'TELANGANA'}</span>
+                <p>A vibrant blend of history, culture and modern attractions.</p>
+                <div className="hero-location-card__photos" aria-hidden="true">
+                  {places.slice(0, 4).map((place) => <img key={place.name} src={place.image} alt="" />)}
+                </div>
+                <button type="button" onClick={() => onNavigate('Search')}>View Gallery <Icon name="arrow" size={13} /></button>
+              </aside>
+            </section>
+
+            <nav className="dashboard-categories" aria-label="Place categories">
               {categories.map((category) => (
                 <button
-                  className={`filter-chip${activeCategory === category ? ' selected' : ''}`}
-                  key={category}
+                  className={`dashboard-category${activeCategory === category.label ? ' is-active' : ''}`}
+                  key={category.label}
                   type="button"
-                  aria-pressed={activeCategory === category}
-                  onClick={() => setActiveCategory(category)}
+                  aria-pressed={activeCategory === category.label}
+                  onClick={() => setActiveCategory(category.label)}
                 >
-                  {category}
+                  <span>{category.icon}</span>
+                  {category.label}
                 </button>
               ))}
-            </div>
-          </div>
+            </nav>
 
-          <div className="places-heading-row">
-            <h3>Nearby places <span>{filteredPlaces.length.toString().padStart(2, '0')}</span></h3>
-            <span className="sort-label">Nearest first <Icon name="pin" size={14} /></span>
-          </div>
+            <section className="dashboard-content" id="places-list" aria-label="Explore nearby places">
+              <aside className="filter-panel" aria-label="Place filters">
+                <div className="filter-panel__heading">
+                  <Icon name="pin" size={15} />
+                  <strong>Location</strong>
+                </div>
+                <div className="filter-location">
+                  <Icon name="pin" size={14} />
+                  <span>{detectedLocation || locationQuery || 'Hyderabad'}</span>
+                </div>
 
-          {filteredPlaces.length > 0 ? (
-            <div className="places-grid">
-              {filteredPlaces.map((place, index) => {
-                const isSaved = savedPlaces.includes(place.name)
-                return (
-                  <article className="place-card" key={place.name}>
-                    <a className="card-image-link" href="#about" aria-label={`Discover ${place.name}`}>
-                      <img
-                        className="card-image"
-                        src={place.image}
-                        alt={place.imageAlt}
-                        loading="lazy"
-                        style={{ objectPosition: index === 1 ? 'center 35%' : 'center' }}
+                <div className="filter-panel__heading filter-panel__heading--distance">
+                  <span aria-hidden="true">⌁</span>
+                  <strong>Distance</strong>
+                  <span className="filter-panel__value">{distanceLimit} km</span>
+                </div>
+                <input
+                  className="distance-slider"
+                  type="range"
+                  min="0"
+                  max="300"
+                  step="5"
+                  value={distanceLimit}
+                  aria-label="Maximum distance in kilometres"
+                  onChange={(event) => setDistanceLimit(Number(event.target.value))}
+                />
+                <div className="distance-range"><span>0 km</span><span>300 km</span></div>
+
+                <div className="filter-panel__heading filter-panel__heading--categories">
+                  <span aria-hidden="true">▦</span>
+                  <strong>Category</strong>
+                </div>
+                <div className="filter-checkboxes">
+                  {['Temples', 'Nature', 'Forts', 'Waterfalls', 'Historical Places', 'Lakes', 'Adventure', 'Wildlife'].map((category) => (
+                    <label key={category}>
+                      <input
+                        type="radio"
+                        name="dashboard-category"
+                        checked={activeCategory === category}
+                        onChange={() => setActiveCategory(category)}
                       />
-                      <span className="place-tag">{place.tag}</span>
-                    </a>
-                    <button
-                      className={`save-button${isSaved ? ' is-saved' : ''}`}
-                      type="button"
-                      aria-label={`${isSaved ? 'Remove' : 'Save'} ${place.name}${isSaved ? ' from' : ' to'} saved places`}
-                      aria-pressed={isSaved}
-                      onClick={() => toggleSaved(place.name)}
+                      <span>{category}</span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="apply-filters"
+                  type="button"
+                  onClick={() => document.getElementById('places-list')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Apply Filters
+                </button>
+                <button className="clear-filters" type="button" onClick={clearFilters}>Reset filters</button>
+              </aside>
+
+              <section className="dashboard-places" aria-labelledby="places-heading">
+                <div className="dashboard-places__heading">
+                  <div>
+                    <h2 id="places-heading">Best Places to Visit Near Hyderabad</h2>
+                    <p>Showing popular tourist places around Hyderabad with distance, photos and details.</p>
+                  </div>
+                  <label className="sort-select">
+                    <span aria-hidden="true">↕</span> Sort by
+                    <select
+                      aria-label="Sort places"
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
                     >
-                      <Icon name="heart" size={17} fill={isSaved ? 'currentColor' : 'none'} />
-                    </button>
-                    <div className="place-card-content">
-                      <div className="place-meta">
-                        <span>{place.category}</span>
-                        <span className="rating"><Icon name="star" size={13} fill="currentColor" /> {place.rating}</span>
-                      </div>
-                      <h4>{place.name}</h4>
-                      <p className="place-location"><Icon name="pin" size={14} /> {place.location}</p>
-                      <div className="card-footer">
-                        <span><Icon name="clock" size={14} /> Easy day trip</span>
-                        <span className="distance">{place.distance} <Icon name="arrow" size={14} /></span>
-                      </div>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <span className="empty-state-icon"><Icon name="search" size={22} /></span>
-              <h3>No places found just yet</h3>
-              <p>Try another search or choose a different category.</p>
-              <button type="button" onClick={() => { setQuery(''); setActiveCategory('All places') }}>Show all places</button>
-            </div>
-          )}
+                      <option value="nearest">Distance (Nearest)</option>
+                      <option value="rating">Rating</option>
+                    </select>
+                  </label>
+                </div>
 
-          <div className="section-bottom">
-            <p>GOOD THINGS ARE NEVER TOO FAR.</p>
-            <span>Showing places near <strong><Icon name="pin" size={13} /> Jaipur, Rajasthan</strong></span>
-          </div>
-        </section>
-      </div>
+                {filteredPlaces.length > 0 ? (
+                  <div className="places-grid">
+                    {filteredPlaces.map((place) => {
+                      const isSaved = savedPlaces.includes(place.name)
+                      return (
+                        <article className="place-card" key={place.name}>
+                          <div className="card-image-link">
+                            <img className="card-image" src={place.image} alt={place.imageAlt} loading="lazy" />
+                            <span className="place-distance"><Icon name="pin" size={13} /> {place.distance} km</span>
+                          </div>
+                          <button
+                            className={`save-button${isSaved ? ' is-saved' : ''}`}
+                            type="button"
+                            aria-label={`${isSaved ? 'Remove' : 'Save'} ${place.name}${isSaved ? ' from' : ' to'} saved places`}
+                            aria-pressed={isSaved}
+                            onClick={() => toggleSaved(place.name)}
+                          >
+                            <Icon name="heart" size={16} fill={isSaved ? 'currentColor' : 'none'} />
+                          </button>
+                          <div className="place-card-content">
+                            <div className="place-meta">
+                              <span className="rating"><Icon name="star" size={13} fill="currentColor" /> {place.rating} <small>({place.reviews})</small></span>
+                              <span className={`place-category place-category--${place.category.toLowerCase().replaceAll(' ', '-')}`}>{place.category}</span>
+                            </div>
+                            <h3>{place.name}</h3>
+                            <p className="place-location"><Icon name="pin" size={13} /> {place.location}</p>
+                            <p className="place-description">{place.description}</p>
+                            <button className="view-details" type="button" onClick={() => onNavigate('Search')}>
+                              View Details <Icon name="arrow" size={14} />
+                            </button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <span className="empty-state-icon"><Icon name="search" size={22} /></span>
+                    <h3>No places found just yet</h3>
+                    <p>Try a different search or reset your filters.</p>
+                    <button type="button" onClick={clearFilters}>Reset filters</button>
+                  </div>
+                )}
+              </section>
 
-      <footer className="site-footer" id="about">
-        <a className="brand footer-brand" href="#home">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 36 36" fill="none">
-              <path d="M18 4 4 28h28L18 4Z" fill="currentColor" opacity=".17" />
-              <path d="M18 8 7 27h22L18 8Z" stroke="currentColor" strokeWidth="2" />
-              <path d="M18 15v9m-4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="brand-name">bharat<span>explore</span></span>
-        </a>
-        <span>Made for the road less ordinary. <span className="footer-heart">♥</span></span>
-        <span className="footer-copyright">© 2025 BharatExplore</span>
-      </footer>
-    </div>
+              <aside className="dashboard-aside">
+                <section className="dashboard-aside__panel dashboard-map" aria-labelledby="map-heading">
+                  <div className="dashboard-aside__heading">
+                    <h2 id="map-heading"><Icon name="pin" size={14} /> Locations on Map</h2>
+                    <button type="button" onClick={() => onNavigate('Map')}>View Full Map ↗</button>
+                  </div>
+                  <div className="dashboard-map__canvas">
+                    <MapView />
+                    <span className="map-label map-label--north">Bhuvanagiri Fort</span>
+                    <span className="map-label map-label--west">Ananthagiri Hills</span>
+                    <span className="map-label map-label--east">Warangal Fort</span>
+                    <span className="map-label map-label--center">Hyderabad</span>
+                    <span className="map-label map-label--south">Yadagirigutta Temple</span>
+                  </div>
+                </section>
+                <section className="dashboard-aside__panel nearby-panel" aria-labelledby="nearby-heading">
+                  <div className="dashboard-aside__heading">
+                    <h2 id="nearby-heading"><Icon name="pin" size={14} /> Nearby Places (Sorted)</h2>
+                    <button type="button" onClick={() => document.getElementById('places-list')?.scrollIntoView({ behavior: 'smooth' })}>View All</button>
+                  </div>
+                  <ol className="nearby-list">
+                    {filteredPlaces.slice(0, 5).map((place, index) => (
+                      <li key={place.name}>
+                        <span className="nearby-rank">{index + 1}</span>
+                        <img src={place.image} alt="" loading="lazy" />
+                        <span>{place.name}</span>
+                        <small>{place.distance} km</small>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              </aside>
+            </section>
+          </main>
+
+          <footer className="site-footer" id="about">
+            <span>Made for the road less ordinary. <span className="footer-heart">♥</span></span>
+            <span className="footer-copyright">© 2025 BharatExplore</span>
+          </footer>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
